@@ -1,16 +1,17 @@
-# Start with a base image that has Java installed
-FROM openjdk:17-jdk-slim
-
-# Set the working directory inside the container
+# Stage 1: Build the application
+# Using a common and reliable Maven base image
+FROM maven:3.8.5-openjdk-17-slim AS builder
 WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline
+COPY src ./src
+RUN mvn package -DskipTests
 
-# Copy the executable JAR file into the container
-# The name "SmartContactManager-0.0.1-SNAPSHOT.jar" must match the name of the file you built
-COPY target/SmartContactManager-0.0.1-SNAPSHOT.jar app.jar
-
-# Expose the port that your Spring Boot application listens on
-# By default, this is 8080
+# Stage 2: Create the final, lightweight image
+# Using a widely available and stable JRE base image
+FROM eclipse-temurin:17-jre-focal
+WORKDIR /app
+COPY --from=builder /app/target/SmartContactManager-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8080
 
-# The command to run your application when the container starts
-CMD ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
